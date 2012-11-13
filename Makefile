@@ -2,20 +2,20 @@
 # Makefile for kernel test
 #
 
-#Makefile ¤¤¥i¥H¨Ï¥ÎÅÜ¼Æ¡A¤@¯ëÅÜ¼Æ¤j¼g¡A¦b¤Ş¥ÎÅÜ¼Æ®É¡A±Ä¥Î¤p¬A©·ÂX°_ÅÜ¼Æ¦W«e¥[¡]$¡^²Å¸¹¨Ó¥Î¡C
-#pwd = ¥Ø«eªº¥Ø¿ı
+#Makefile ä¸­å¯ä»¥ä½¿ç”¨è®Šæ•¸ï¼Œä¸€èˆ¬è®Šæ•¸å¤§å¯«ï¼Œåœ¨å¼•ç”¨è®Šæ•¸æ™‚ï¼Œæ¡ç”¨å°æ‹¬å¼§æ“´èµ·è®Šæ•¸åå‰åŠ ï¼ˆ$ï¼‰ç¬¦è™Ÿä¾†ç”¨ã€‚
+#pwd = ç›®å‰çš„ç›®éŒ„
 PWD         := $(shell pwd) 
 KVERSION    := $(shell uname -r)
 KERNEL_DIR   = /usr/src/linux-headers-$(KVERSION)/
 
 MODULE_NAME  = hello
 
-#obj-mªí¥Ü»İ­n½sÃ¶¦¨¼Ò²Õªº¥Ø¼ĞÀÉ®×¦W¶°¦X
+#obj-mè¡¨ç¤ºéœ€è¦ç·¨ç¹¹æˆæ¨¡çµ„çš„ç›®æ¨™æª”æ¡ˆåé›†åˆ
 obj-m       := $(MODULE_NAME).o   
 
 all:
-	# -Cªí¥Ükernel source¥Ø¿ı¡A¦]¬°§Ú­Ì¦³°Ñ·Óheader¡A©Ò¥H³oÃä­n§i¶D make ¥h­ş§ä
-	# Use make M=dir to specify directory of external module to build¡A©w¸q¦b kernel ¤¤
+	# -Cè¡¨ç¤ºkernel sourceç›®éŒ„ï¼Œå› ç‚ºæˆ‘å€‘æœ‰åƒç…§headerï¼Œæ‰€ä»¥é€™é‚Šè¦å‘Šè¨´ make å»å“ªæ‰¾
+	# Use make M=dir to specify directory of external module to buildï¼Œå®šç¾©åœ¨ kernel ä¸­
 	make -C $(KERNEL_DIR) M=$(PWD) modules
 	#insmod $(MODULE_NAME).ko
 	#$(PRINT_MESSAGE)
