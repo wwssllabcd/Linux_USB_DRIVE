@@ -45,6 +45,8 @@ static const struct usb_device_id skel_table[] = {
 	{ USB_DEVICE(USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };
+
+//告訴用戶空間的熱插拔和模塊裝載，vid和pid對應什麼硬件設備。以便執行自動掛載。
 MODULE_DEVICE_TABLE(usb, skel_table);
 	
 static int __init usb_skel_init(void)
@@ -77,11 +79,23 @@ MODULE_LICENSE("GPL");
 #define to_skel_dev(d) container_of(d, struct usb_skel, kref)
 static void skel_delete(struct kref *kref)
 {
+	//skel_delete主要作用就是减"1"
+	/*
+	1.獲得設備
+	2.減少設備的引用次數
+	3.釋放分配的數據空間
+	4.釋放分配的驅動空間
+	*/
+				   
 	struct usb_skel *dev = to_skel_dev(kref);
 
 	usb_free_urb(dev->bulk_in_urb);
 	usb_put_dev(dev->udev);
-	kfree(dev->bulk_in_buffer);
+
+	//釋放批量輸入端口緩衝
+	kfree(dev->bulk_in_buffer); 
+
+	//釋放設備
 	kfree(dev);
 
 	printk(KERN_INFO "eric_skel_delete\n");
@@ -116,6 +130,14 @@ static void skel_disconnect(struct usb_interface *interface)
 static int skel_probe(struct usb_interface *interface,
 		      const struct usb_device_id *id)
 {
+	/*
+	probe函數主要完成以下工作:
+	1.分配一個設備驅動空間，並對這個設備進行引用計數
+	2.設備空間中的usb device,interface兩個成員，分別由真實成員來賦值，目的是把這些真實成員跟這個新的設備空間關聯起來
+	3.判斷接口所包含的端點特性，看跟硬件是否一致，如果不一致，則出錯，即返回值不等於0
+	4.註冊一個文件設備，這個文件設備是提供給應用程序用於操作設備的，包含打開，關閉，讀，寫等功能。
+	5.成功則返回0
+	*/
 	printk(KERN_INFO "eric_skel_probe\n");
 	return -1;
 }
