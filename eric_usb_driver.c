@@ -36,6 +36,7 @@ struct usb_skel {
 };
 
 
+
 /* Define these values to match your devices */
 #define USB_SKEL_VENDOR_ID	0x1234
 #define USB_SKEL_PRODUCT_ID	0x5678
@@ -49,7 +50,17 @@ static const struct usb_device_id skel_table[] = {
 //告訴用戶空間的熱插拔和模塊裝載，vid和pid對應什麼硬件設備。以便執行自動掛載。
 //第一個參數是設備的類型，如果是USB設備，那自然是usb（如果是PCI設備，那將是pci
 MODULE_DEVICE_TABLE(usb, skel_table);
-	
+
+/* Get a minor range for your devices from the usb maintainer */
+#define USB_SKEL_MINOR_BASE	192
+
+/* our private defines. if this grows any larger, use your own .h file */
+#define MAX_TRANSFER		(PAGE_SIZE - 512)
+/* MAX_TRANSFER is chosen so that the VM is not stressed by
+   allocations > PAGE_SIZE and the number of packets in a page
+   is an integer 512 is the largest possible packet on EHCI */
+#define WRITES_IN_FLIGHT	8
+
 static int __init usb_skel_init(void)
 {
 	int result;
@@ -57,7 +68,7 @@ static int __init usb_skel_init(void)
 	/* register this driver with the USB subsystem */
 	result = usb_register(&skel_driver);
 
-	printk(KERN_INFO "eric_inti_res= %d\n", result);
+	printk(KERN_INFO "eric_usb_skel_inti_res= %d\n", result);
 
 	if (result)
 		err("usb_register failed. Error number %d", result);
@@ -126,7 +137,7 @@ static void skel_disconnect(struct usb_interface *interface)
 
 	/* decrement our usage count */
 	//把kref引用計數減1，如果到0時，會呼叫skel_delete
-	printk(KERN_INFO "eric_dev->kref = %d \n", dev->kref);
+	printk(KERN_INFO "eric_dev->kref = %d \n", dev->kref.refcount);
 	kref_put(&dev->kref, skel_delete);
 
 	dev_info(&interface->dev, "USB Skeleton #%d now disconnected", minor);
@@ -134,15 +145,9 @@ static void skel_disconnect(struct usb_interface *interface)
 	printk(KERN_INFO "eric_skel_disconnect\n");
 }
 
-static const struct file_operations skel_fops = {
-	.owner =	THIS_MODULE,
-	.read =		skel_read,
-	.write =	skel_write,
-	.open =		skel_open,
-	.release =	skel_release,
-	.flush =	skel_flush,
-	.llseek =	noop_llseek,
-};
+
+
+static const struct file_operations skel_fops;
 
 /*
  * usb class driver info in order to get a minor number from the usb core,
