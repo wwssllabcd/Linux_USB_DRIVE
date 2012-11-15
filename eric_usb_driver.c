@@ -47,6 +47,7 @@ static const struct usb_device_id skel_table[] = {
 };
 
 //告訴用戶空間的熱插拔和模塊裝載，vid和pid對應什麼硬件設備。以便執行自動掛載。
+//第一個參數是設備的類型，如果是USB設備，那自然是usb（如果是PCI設備，那將是pci
 MODULE_DEVICE_TABLE(usb, skel_table);
 	
 static int __init usb_skel_init(void)
@@ -127,6 +128,9 @@ static void skel_disconnect(struct usb_interface *interface)
 	printk(KERN_INFO "eric_skel_disconnect\n");
 }
 
+//系統會傳遞給探測函數一個usb_interface *跟一個struct usb_device_id *作為參數。
+//他們分別是該USB設備的接口描述（一般會是該設備的第0號接口，
+//該接口的默認設置也是第0號設置）跟它的設備ID描述（包括Vendor ID、Production ID等）
 static int skel_probe(struct usb_interface *interface,
 		      const struct usb_device_id *id)
 {
@@ -138,6 +142,9 @@ static int skel_probe(struct usb_interface *interface,
 	4.註冊一個文件設備，這個文件設備是提供給應用程序用於操作設備的，包含打開，關閉，讀，寫等功能。
 	5.成功則返回0
 	*/
+	
+	
+	
 	printk(KERN_INFO "eric_skel_probe\n");
 	return -1;
 }
