@@ -107,10 +107,14 @@ static void skel_disconnect(struct usb_interface *interface)
 	struct usb_skel *dev;
 	int minor = interface->minor;
 
+	//取出該interface所對應的 usb_skel( 該usb_skel在 probe階段被設定到interface上)
 	dev = usb_get_intfdata(interface);
+	
+	//註銷該usb_skel( 利用set NULL的方式)
 	usb_set_intfdata(interface, NULL);
 
 	/* give back our minor */
+	//註銷這個interface所綁定的 skel_class
 	usb_deregister_dev(interface, &skel_class);
 
 	/* prevent more I/O from starting */
@@ -121,12 +125,35 @@ static void skel_disconnect(struct usb_interface *interface)
 	usb_kill_anchored_urbs(&dev->submitted);
 
 	/* decrement our usage count */
+	//把kref引用計數減1，如果到0時，會呼叫skel_delete
+	printk(KERN_INFO "eric_dev->kref = %d \n", dev->kref);
 	kref_put(&dev->kref, skel_delete);
 
 	dev_info(&interface->dev, "USB Skeleton #%d now disconnected", minor);
 
 	printk(KERN_INFO "eric_skel_disconnect\n");
 }
+
+static const struct file_operations skel_fops = {
+	.owner =	THIS_MODULE,
+	.read =		skel_read,
+	.write =	skel_write,
+	.open =		skel_open,
+	.release =	skel_release,
+	.flush =	skel_flush,
+	.llseek =	noop_llseek,
+};
+
+/*
+ * usb class driver info in order to get a minor number from the usb core,
+ * and to have the device registered with the driver core
+ */
+static struct usb_class_driver skel_class = {
+	.name =		"skel%d",
+	.fops =		&skel_fops,
+	.minor_base =	USB_SKEL_MINOR_BASE, //主設備號用來區分不同類型的設備，而次設備號用來區分同一類型內的多個設備。
+};
+
 
 //系統會傳遞給探測函數一個usb_interface *跟一個struct usb_device_id *作為參數。
 //他們分別是該USB設備的接口描述（一般會是該設備的第0號接口，
@@ -143,16 +170,129 @@ static int skel_probe(struct usb_interface *interface,
 	5.成功則返回0
 	*/
 	
+	//建立一個 skeleton 並命名為一個很容易混淆的名子 -- dev
+	//並且在這個init的地方，使用kalloc配置記憶體
+	struct usb_skel *dev;
+	struct usb_host_interface *iface_desc;
+	struct usb_endpoint_descriptor *endpoint;
+	size_t buffer_size;
+	int i;
+	int retval = -ENOMEM;
+
+	// 一個新的skeleton
+	/* allocate memory for our device state and initialize it */
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev) {
+		err("Out of memory");
+		goto error;
+	}
+	//初始化kref,把他設為1
+	//這個是本module的kref, 至於usbDevice的kref是在 dev->dev->kref
+	kref_init(&dev->kref);
+	sema_init(&dev->limit_sem, WRITES_IN_FLIGHT);
+	mutex_init(&dev->io_mutex);
+	spin_lock_init(&dev->err_lock);
+	init_usb_anchor(&dev->submitted);
+	init_completion(&dev->bulk_in_completion);
+
+	// 本來，要得到一個usb_device只要用interface_to_usbdev就夠了，
+	// 但因為要增加對該usb_device的引用計數，我們應該在做一個usb_get_dev的操作，
+	// 來增加引用計數，並在釋放設備時用usb_put_dev來減少引用計數
+	// 該引用計數值是對該usb_device的計數，並不是對本模塊的計數
+	// dev->dev->kref加1
+	// 注意，第一個dev是代表usb skeleton，第二個才是usb_device
+	dev->udev = usb_get_dev(interface_to_usbdev(interface));
 	
+	// interface定義在include/linux/usb.h中
+	// 在linux中，一個USBinterface對應一種USB邏輯設備，比如鼠標、鍵盤、音頻流。
+	// 所以，在USB範疇中，device一般就是指一個interface。一個驅動只控制一個interface。
+	dev->interface = interface;
+
+	/* set up the endpoint information */
+	/* use only the first bulk-in and bulk-out endpoints */
 	
-	printk(KERN_INFO "eric_skel_probe\n");
-	return -1;
+	// 這邊要先提一下linux的習慣，各種descriptor都會有個叫 usb_host_xxx(如 usb_host_interface )
+	// 而 usb_host_xxx 裡面會有一個叫 usb_xxx_descriptor(如usb_interface_descriptor)，命名通常以 desc 來命名
+	// 裡面對應就是存放 device 回傳的 descriptor 的值
+	
+	// cur_altsetting為一種 usb_host_interface 的struct, 其中裡面的desc是一個叫 usb_interface_descriptor 的 struct，mapping到ch9的interface_descriptor
+	// 可以在include/linux/ch9.h中找到
+	
+	iface_desc = interface->cur_altsetting;
+	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
+		endpoint = &iface_desc->endpoint[i].desc;
+
+		// 把 device的endpoint descriptor，註冊到usb_skel中
+		if (!dev->bulk_in_endpointAddr && usb_endpoint_is_bulk_in(endpoint)) {
+			/* we found a bulk in endpoint */
+			
+			// usb_endpoint_maxp(endpoint) 其實就是 le16_to_cpu(epd->wMaxPacketSize);
+			// le16_to_cpu 是前後MSB轉LSB顛倒, big_endlian和little_endian互轉
+			buffer_size = usb_endpoint_maxp(endpoint);
+			dev->bulk_in_size = buffer_size;
+			dev->bulk_in_endpointAddr = endpoint->bEndpointAddress;
+			dev->bulk_in_buffer = kmalloc(buffer_size, GFP_KERNEL);
+			if (!dev->bulk_in_buffer) {
+				err("Could not allocate bulk_in_buffer");
+				goto error;
+			}
+			dev->bulk_in_urb = usb_alloc_urb(0, GFP_KERNEL);
+			if (!dev->bulk_in_urb) {
+				err("Could not allocate bulk_in_urb");
+				goto error;
+			}
+		}
+
+		if (!dev->bulk_out_endpointAddr && usb_endpoint_is_bulk_out(endpoint)) {
+			/* we found a bulk out endpoint */
+			dev->bulk_out_endpointAddr = endpoint->bEndpointAddress;
+		}
+	}
+	
+	//看看有沒有找到任何的bulk in /bulk out
+	if (!(dev->bulk_in_endpointAddr && dev->bulk_out_endpointAddr)) {
+		err("Could not find both bulk-in and bulk-out endpoints");
+		goto error;
+	}
+
+	/* save our data pointer in this interface device */
+	
+	// usb_set_intfdata為一個inline function，在include/linux/usb.h中
+	// 把向系統註冊，代表說，這個interface是使用這個usb_skel？
+	// 之後可以利用usb_get_intfdata 把資料取出來
+	
+	//這邊其實是利用兩個inline funciton(一個在include/linux/usb.h, 另一個在include/linux/device.h)
+	//把 interface->dev->driver_data = dev, 其實假設usbcore 保留的是interface的話，那麼把usb_skel放在interface就代表隨時可以取出來
+	usb_set_intfdata(interface, dev);
+
+	/* we can register the device now, as it is ready */
+	//註冊 io 函數的 struct，會檢查&skel_class是否為NULL，同時也會配置主/次設備號
+	retval = usb_register_dev(interface, &skel_class);
+	
+	if (retval) {
+		/* something prevented us from registering this driver */
+		err("Not able to get a minor for this device.");
+		usb_set_intfdata(interface, NULL);
+		goto error;
+	}
+
+	/* let the user know what node this device is now attached to */
+	dev_info(&interface->dev, "USB Skeleton device now attached to USBSkel-%d", interface->minor);
+	return 0;
+
+error:
+	if (dev)
+		/* this frees allocated memory */
+		kref_put(&dev->kref, skel_delete);
+	return retval;
 }
 
 static struct usb_driver skel_driver = {
 	.name =		"eric_usb_driver_test",
 	.probe =	skel_probe,
-	.disconnect =	skel_disconnect,
+	
+	//設備被拔出集線器時，usb子系統會自動地調用disconnect
+	.disconnect =	skel_disconnect,  
 	.id_table =	skel_table,
 };
 
