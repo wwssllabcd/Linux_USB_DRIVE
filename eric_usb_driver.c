@@ -66,10 +66,9 @@ static int __init usb_skel_init(void)
 	int result;
 
 	/* register this driver with the USB subsystem */
+	//註冊本驅動，可用lsmod觀察
 	result = usb_register(&skel_driver);
-
-	printk(KERN_INFO "eric_usb_skel_inti_res= %d\n", result);
-	printk(KERN_INFO "eric_vid= %04x, pid=%04x\n", USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID );
+	printk(KERN_INFO "eric_init= %d, vid= %04x, pid=%04x\n", result, USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID );
 
 	if (result)
 		err("usb_register failed. Error number %d", result);
