@@ -149,6 +149,7 @@ static void skel_delete(struct kref *kref)
 static int skel_open(struct inode *inode, struct file *file)
 {
 	int retval = 0;
+	printk(KERN_INFO "eric_skel_open\n");
 	return retval;
 }
 
@@ -168,12 +169,16 @@ static int skel_release(struct inode *inode, struct file *file)
 
 	/* decrement the count on our device */
 	kref_put(&dev->kref, skel_delete);
+	
+	printk(KERN_INFO "eric_skel_release\n");
 	return 0;
 }
 
 static int skel_flush(struct file *file, fl_owner_t id)
 {
 	int res = 0 ;
+	
+	printk(KERN_INFO "eric_skel_flush\n");
 	return res;
 }
 
@@ -181,6 +186,8 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count,
 			 loff_t *ppos)
 {
 	int rv=0;
+	
+	printk(KERN_INFO "eric_skel_read\n");
 	return rv;
 }
 
@@ -188,6 +195,8 @@ static ssize_t skel_write(struct file *file, const char *user_buffer,
 			  size_t count, loff_t *ppos)
 {
 	int retval = 0;
+	
+	printk(KERN_INFO "eric_skel_write\n");
 	return retval;
 }
 
