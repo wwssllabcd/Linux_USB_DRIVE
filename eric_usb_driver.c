@@ -89,29 +89,6 @@ module_exit(usb_skel_exit);
 MODULE_LICENSE("GPL");
 
 #define to_skel_dev(d) container_of(d, struct usb_skel, kref)
-static void skel_delete(struct kref *kref)
-{
-	//skel_delete主要作用就是减"1"
-	/*
-	1.獲得設備
-	2.減少設備的引用次數
-	3.釋放分配的數據空間
-	4.釋放分配的驅動空間
-	*/
-				   
-	struct usb_skel *dev = to_skel_dev(kref);
-
-	usb_free_urb(dev->bulk_in_urb);
-	usb_put_dev(dev->udev);
-
-	//釋放批量輸入端口緩衝
-	kfree(dev->bulk_in_buffer); 
-
-	//釋放設備
-	kfree(dev);
-
-	printk(KERN_INFO "eric_skel_delete\n");
-}
 
 static void skel_disconnect(struct usb_interface *interface)
 {
@@ -145,9 +122,85 @@ static void skel_disconnect(struct usb_interface *interface)
 	printk(KERN_INFO "eric_skel_disconnect\n");
 }
 
+static void skel_delete(struct kref *kref)
+{
+	//skel_delete主要作用就是减"1"
+	/*
+	1.獲得設備
+	2.減少設備的引用次數
+	3.釋放分配的數據空間
+	4.釋放分配的驅動空間
+	*/
+	
+	struct usb_skel *dev = to_skel_dev(kref);
+
+	usb_free_urb(dev->bulk_in_urb);
+	usb_put_dev(dev->udev);
+	
+	//釋放批量輸入端口緩衝
+	kfree(dev->bulk_in_buffer);
+	
+	//釋放設備
+	kfree(dev);
+	
+	printk(KERN_INFO "eric_skel_delete\n");
+}
+
+static int skel_open(struct inode *inode, struct file *file)
+{
+	int retval = 0;
+	return retval;
+}
+
+static int skel_release(struct inode *inode, struct file *file)
+{
+	struct usb_skel *dev;
+
+	dev = file->private_data;
+	if (dev == NULL)
+		return -ENODEV;
+
+	/* allow the device to be autosuspended */
+	mutex_lock(&dev->io_mutex);
+	if (!--dev->open_count && dev->interface)
+		usb_autopm_put_interface(dev->interface);
+	mutex_unlock(&dev->io_mutex);
+
+	/* decrement the count on our device */
+	kref_put(&dev->kref, skel_delete);
+	return 0;
+}
+
+static int skel_flush(struct file *file, fl_owner_t id)
+{
+	int res = 0 ;
+	return res;
+}
+
+static ssize_t skel_read(struct file *file, char *buffer, size_t count,
+			 loff_t *ppos)
+{
+	int rv=0;
+	return rv;
+}
+
+static ssize_t skel_write(struct file *file, const char *user_buffer,
+			  size_t count, loff_t *ppos)
+{
+	int retval = 0;
+	return retval;
+}
 
 
-static const struct file_operations skel_fops;
+static const struct file_operations skel_fops = {
+	.owner =	THIS_MODULE,
+	.read =		skel_read,
+	.write =	skel_write,
+	.open =		skel_open,
+	.release =	skel_release,
+	.flush =	skel_flush,
+	.llseek =	noop_llseek,
+};
 
 /*
  * usb class driver info in order to get a minor number from the usb core,
