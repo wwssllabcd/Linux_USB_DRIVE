@@ -38,8 +38,8 @@ struct usb_skel {
 
 
 /* Define these values to match your devices */
-#define USB_SKEL_VENDOR_ID	0x1234
-#define USB_SKEL_PRODUCT_ID	0x5678
+#define USB_SKEL_VENDOR_ID	0x0c76
+#define USB_SKEL_PRODUCT_ID	0x0005
 
 /* table of devices that work with this driver */
 static const struct usb_device_id skel_table[] = {
@@ -69,6 +69,7 @@ static int __init usb_skel_init(void)
 	result = usb_register(&skel_driver);
 
 	printk(KERN_INFO "eric_usb_skel_inti_res= %d\n", result);
+	printk(KERN_INFO "eric_vid= %04x, pid=%04x\n", USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID );
 
 	if (result)
 		err("usb_register failed. Error number %d", result);
@@ -247,6 +248,8 @@ static int skel_probe(struct usb_interface *interface,
 	size_t buffer_size;
 	int i;
 	int retval = -ENOMEM;
+
+	printk(KERN_INFO "eric_probe");
 
 	// 一個新的skeleton
 	/* allocate memory for our device state and initialize it */
