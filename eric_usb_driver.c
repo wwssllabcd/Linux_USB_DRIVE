@@ -90,6 +90,31 @@ MODULE_LICENSE("GPL");
 
 #define to_skel_dev(d) container_of(d, struct usb_skel, kref)
 
+
+static void skel_delete(struct kref *kref)
+{
+	//skel_delete主要作用就是减"1"
+	/*
+	1.獲得設備
+	2.減少設備的引用次數
+	3.釋放分配的數據空間
+	4.釋放分配的驅動空間
+	*/
+	
+	struct usb_skel *dev = to_skel_dev(kref);
+
+	usb_free_urb(dev->bulk_in_urb);
+	usb_put_dev(dev->udev);
+	
+	//釋放批量輸入端口緩衝
+	kfree(dev->bulk_in_buffer);
+	
+	//釋放設備
+	kfree(dev);
+	
+	printk(KERN_INFO "eric_skel_delete\n");
+}
+
 static void skel_disconnect(struct usb_interface *interface)
 {
 	struct usb_skel *dev;
@@ -122,29 +147,6 @@ static void skel_disconnect(struct usb_interface *interface)
 	printk(KERN_INFO "eric_skel_disconnect\n");
 }
 
-static void skel_delete(struct kref *kref)
-{
-	//skel_delete主要作用就是减"1"
-	/*
-	1.獲得設備
-	2.減少設備的引用次數
-	3.釋放分配的數據空間
-	4.釋放分配的驅動空間
-	*/
-	
-	struct usb_skel *dev = to_skel_dev(kref);
-
-	usb_free_urb(dev->bulk_in_urb);
-	usb_put_dev(dev->udev);
-	
-	//釋放批量輸入端口緩衝
-	kfree(dev->bulk_in_buffer);
-	
-	//釋放設備
-	kfree(dev);
-	
-	printk(KERN_INFO "eric_skel_delete\n");
-}
 
 static int skel_open(struct inode *inode, struct file *file)
 {
