@@ -151,8 +151,60 @@ static void skel_disconnect(struct usb_interface *interface)
 
 static int skel_open(struct inode *inode, struct file *file)
 {
+	struct usb_skel *dev;
+	struct usb_interface *interface;
+	int subminor;
 	int retval = 0;
-	printk(KERN_ERR "eric_skel_open\n");
+
+	printk(KERN_ERR "eric_open\n");
+
+
+	subminor = iminor(inode);
+
+	interface = usb_find_interface(&skel_driver, subminor);
+	if (!interface) {
+		err("%s - error, can't find device for minor %d",
+		     __func__, subminor);
+		retval = -ENODEV;
+		goto exit;
+	}
+
+	dev = usb_get_intfdata(interface);
+	if (!dev) {
+		retval = -ENODEV;
+		goto exit;
+	}
+
+	/* increment our usage count for the device */
+	kref_get(&dev->kref);
+
+	/* lock the device to allow correctly handling errors
+	 * in resumption */
+	mutex_lock(&dev->io_mutex);
+
+	if (!dev->open_count++) {
+		retval = usb_autopm_get_interface(interface);
+			if (retval) {
+				dev->open_count--;
+				mutex_unlock(&dev->io_mutex);
+				kref_put(&dev->kref, skel_delete);
+				goto exit;
+			}
+	} /* else { //uncomment this block if you want exclusive open
+		retval = -EBUSY;
+		dev->open_count--;
+		mutex_unlock(&dev->io_mutex);
+		kref_put(&dev->kref, skel_delete);
+		goto exit;
+	} */
+	/* prevent the device from being autosuspended */
+
+	/* save our object in the file's private structure */
+	file->private_data = dev;
+	mutex_unlock(&dev->io_mutex);
+
+exit:
+>>>>>>> 74ca56193b0a672f46ec66487d4c15ac15a00a6a
 	return retval;
 }
 
