@@ -38,8 +38,8 @@ struct usb_skel {
 
 
 /* Define these values to match your devices */
-#define USB_SKEL_VENDOR_ID	0x0c76
-#define USB_SKEL_PRODUCT_ID	0x0005
+#define USB_SKEL_VENDOR_ID	0x1234
+#define USB_SKEL_PRODUCT_ID	0x5678
 
 /* table of devices that work with this driver */
 static const struct usb_device_id skel_table[] = {
@@ -248,7 +248,7 @@ static int skel_probe(struct usb_interface *interface,
 	int i;
 	int retval = -ENOMEM;
 
-	printk(KERN_ERR "eric_probe");
+	printk(KERN_ERR "eric_probe, ret=%d\n", retval);
 
 	// 一個新的skeleton
 	/* allocate memory for our device state and initialize it */
@@ -257,6 +257,10 @@ static int skel_probe(struct usb_interface *interface,
 		err("Out of memory");
 		goto error;
 	}
+
+	printk(KERN_ERR "eric_probe, devsize=%lx\n", sizeof(*dev));
+	printk(KERN_ERR "eric_probe, dev=%lx\n", dev);
+
 	//初始化kref,把他設為1
 	//這個是本module的kref, 至於usbDevice的kref是在 dev->dev->kref
 	kref_init(&dev->kref);
@@ -292,6 +296,8 @@ static int skel_probe(struct usb_interface *interface,
 	iface_desc = interface->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
+
+		printk(KERN_ERR "eric_probe, dev->bulk_in=%lx\n", dev->bulk_in_endpointAddr);
 
 		// 把 device的endpoint descriptor，註冊到usb_skel中
 		if (!dev->bulk_in_endpointAddr && usb_endpoint_is_bulk_in(endpoint)) {
