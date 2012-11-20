@@ -82,7 +82,7 @@ static void __exit usb_skel_exit(void)
 	/* deregister this driver with the USB subsystem */
 	usb_deregister(&skel_driver);
 
-	printk(KERN_INFO "eric_usb_skel_exit\n");
+	printk(KERN_ERR "eric_usb_skel_exit\n");
 }
 
 module_init(usb_skel_init);
@@ -113,7 +113,7 @@ static void skel_delete(struct kref *kref)
 	//釋放設備
 	kfree(dev);
 	
-	printk(KERN_INFO "eric_skel_delete\n");
+	printk(KERN_ERR "eric_skel_delete\n");
 }
 
 static void skel_disconnect(struct usb_interface *interface)
@@ -145,14 +145,14 @@ static void skel_disconnect(struct usb_interface *interface)
 
 	dev_info(&interface->dev, "USB Skeleton #%d now disconnected", minor);
 
-	printk(KERN_INFO "eric_skel_disconnect\n");
+	printk(KERN_ERR "eric_skel_disconnect\n");
 }
 
 
 static int skel_open(struct inode *inode, struct file *file)
 {
 	int retval = 0;
-	printk(KERN_INFO "eric_skel_open\n");
+	printk(KERN_ERR "eric_skel_open\n");
 	return retval;
 }
 
@@ -173,7 +173,7 @@ static int skel_release(struct inode *inode, struct file *file)
 	/* decrement the count on our device */
 	kref_put(&dev->kref, skel_delete);
 	
-	printk(KERN_INFO "eric_skel_release\n");
+	printk(KERN_ERR "eric_skel_release\n");
 	return 0;
 }
 
@@ -181,7 +181,7 @@ static int skel_flush(struct file *file, fl_owner_t id)
 {
 	int res = 0 ;
 	
-	printk(KERN_INFO "eric_skel_flush\n");
+	printk(KERN_ERR "eric_skel_flush\n");
 	return res;
 }
 
@@ -190,7 +190,7 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count,
 {
 	int rv=0;
 	
-	printk(KERN_INFO "eric_skel_read\n");
+	printk(KERN_ERR "eric_skel_read\n");
 	return rv;
 }
 
@@ -199,7 +199,7 @@ static ssize_t skel_write(struct file *file, const char *user_buffer,
 {
 	int retval = 0;
 	
-	printk(KERN_INFO "eric_skel_write\n");
+	printk(KERN_ERR "eric_skel_write\n");
 	return retval;
 }
 
