@@ -24,8 +24,8 @@
 
 
 /* Define these values to match your devices */
-#define USB_SKEL_VENDOR_ID	0xfff0
-#define USB_SKEL_PRODUCT_ID	0xfff0
+#define USB_SKEL_VENDOR_ID	0x0c76
+#define USB_SKEL_PRODUCT_ID	0x0005
 
 /* table of devices that work with this driver */
 static const struct usb_device_id skel_table[] = {
@@ -529,6 +529,7 @@ static int skel_probe(struct usb_interface *interface,
 	size_t buffer_size;
 	int i;
 	int retval = -ENOMEM;
+	printk(KERN_INFO "eric_prob,vid= %04x, pid=%04x\n", USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID );
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);

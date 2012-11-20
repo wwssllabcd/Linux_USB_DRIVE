@@ -248,7 +248,7 @@ static int skel_probe(struct usb_interface *interface,
 	int i;
 	int retval = -ENOMEM;
 
-	printk(KERN_INFO "eric_probe");
+	printk(KERN_ERR "eric_probe");
 
 	// 一個新的skeleton
 	/* allocate memory for our device state and initialize it */
