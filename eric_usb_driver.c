@@ -204,7 +204,6 @@ static int skel_open(struct inode *inode, struct file *file)
 	mutex_unlock(&dev->io_mutex);
 
 exit:
->>>>>>> 74ca56193b0a672f46ec66487d4c15ac15a00a6a
 	return retval;
 }
 
