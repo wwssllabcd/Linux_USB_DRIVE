@@ -41,6 +41,7 @@ struct usb_skel {
 #define USB_SKEL_VENDOR_ID	0x1234
 #define USB_SKEL_PRODUCT_ID	0x5678
 
+//USB_DEVICE是一個MACRO，定義在usb.h中，幫助建立一個 usb_device_id
 /* table of devices that work with this driver */
 static const struct usb_device_id skel_table[] = {
 	{ USB_DEVICE(USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID) },
