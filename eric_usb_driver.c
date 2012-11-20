@@ -270,7 +270,7 @@ static const struct file_operations skel_fops = {
  * and to have the device registered with the driver core
  */
 static struct usb_class_driver skel_class = {
-	.name =		"skel%d",
+	.name =		"usb_eric_%d",                // .name 對應到的是掛載後，/dev下面出現的名稱
 	.fops =		&skel_fops,
 	.minor_base =	USB_SKEL_MINOR_BASE, //主設備號用來區分不同類型的設備，而次設備號用來區分同一類型內的多個設備。
 };
@@ -302,7 +302,7 @@ static int skel_probe(struct usb_interface *interface,
 	*/
 	
 	//建立一個 skeleton 並命名為一個很容易混淆的名子 -- dev
-	//並且在這個init的地方，使用kalloc配置記憶體
+	//並且在這個init的地方，使用 kzalloc 配置記憶體
 	struct usb_skel *dev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
