@@ -295,9 +295,11 @@ static int skel_probe(struct usb_interface *interface,
 		endpoint = &iface_desc->endpoint[i].desc;
 
 		// 把 device的endpoint descriptor，註冊到usb_skel中
+		// usb_endpoint_is_bulk_in 是檢查 是否為 8xh(bulkin) 與屬性 attribule是否為0x02(代表bulk傳輸)
 		if (!dev->bulk_in_endpointAddr && usb_endpoint_is_bulk_in(endpoint)) {
 			/* we found a bulk in endpoint */
 			
+			// 根據device 回報的最大package size，來決定使用多少memory
 			// usb_endpoint_maxp(endpoint) 其實就是 le16_to_cpu(epd->wMaxPacketSize);
 			// le16_to_cpu 是前後MSB轉LSB顛倒, big_endlian和little_endian互轉
 			buffer_size = usb_endpoint_maxp(endpoint);
@@ -308,6 +310,9 @@ static int skel_probe(struct usb_interface *interface,
 				err("Could not allocate bulk_in_buffer");
 				goto error;
 			}
+			
+			// 使用 usb_alloc_urb 建立一個 urb
+			// struct urb 可在include/linux/usb.h 找到
 			dev->bulk_in_urb = usb_alloc_urb(0, GFP_KERNEL);
 			if (!dev->bulk_in_urb) {
 				err("Could not allocate bulk_in_urb");
