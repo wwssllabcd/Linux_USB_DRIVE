@@ -24,8 +24,8 @@
 
 
 /* Define these values to match your devices */
-#define USB_SKEL_VENDOR_ID	0x0c76
-#define USB_SKEL_PRODUCT_ID	0x0005
+#define USB_SKEL_VENDOR_ID	0x1234
+#define USB_SKEL_PRODUCT_ID	0x5678
 
 /* table of devices that work with this driver */
 static const struct usb_device_id skel_table[] = {
@@ -77,6 +77,8 @@ static void skel_delete(struct kref *kref)
 {
 	struct usb_skel *dev = to_skel_dev(kref);
 
+	printk(KERN_INFO "eric_del\n");
+
 	usb_free_urb(dev->bulk_in_urb);
 	usb_put_dev(dev->udev);
 	kfree(dev->bulk_in_buffer);
@@ -89,6 +91,8 @@ static int skel_open(struct inode *inode, struct file *file)
 	struct usb_interface *interface;
 	int subminor;
 	int retval = 0;
+
+	printk(KERN_INFO "eric_open\n");
 
 	subminor = iminor(inode);
 
@@ -142,6 +146,8 @@ static int skel_release(struct inode *inode, struct file *file)
 {
 	struct usb_skel *dev;
 
+	printk(KERN_INFO "eric_release\n");
+
 	dev = file->private_data;
 	if (dev == NULL)
 		return -ENODEV;
@@ -161,6 +167,8 @@ static int skel_flush(struct file *file, fl_owner_t id)
 {
 	struct usb_skel *dev;
 	int res;
+	
+	printk(KERN_INFO "eric_flush\n");
 
 	dev = file->private_data;
 	if (dev == NULL)
@@ -247,6 +255,8 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count,
 	bool ongoing_io;
 
 	dev = file->private_data;
+
+	printk(KERN_INFO "eric_Read\n");
 
 	/* if we cannot read at all, return EOF */
 	if (!dev->bulk_in_urb || !count)
@@ -400,6 +410,8 @@ static ssize_t skel_write(struct file *file, const char *user_buffer,
 	struct urb *urb = NULL;
 	char *buf = NULL;
 	size_t writesize = min(count, (size_t)MAX_TRANSFER);
+
+	printk(KERN_INFO "eric_w\n");
 
 	dev = file->private_data;
 
