@@ -225,6 +225,16 @@ static struct usb_class_driver skel_class = {
 };
 
 
+static void showEndPoint(const struct usb_endpoint_descriptor *endpoint)
+{
+	printk(KERN_ERR "ep->bLength=%x\n", endpoint->bLength);
+	printk(KERN_ERR "ep->bDescriptorType=%x\n", endpoint->bDescriptorType);
+	printk(KERN_ERR "ep->bEndpointAddress=%x\n", endpoint->bEndpointAddress);
+	printk(KERN_ERR "ep->bmAttributes=%x\n", endpoint->bmAttributes);
+	printk(KERN_ERR "ep->wMaxPacketSize=%x\n", endpoint->wMaxPacketSize);
+	printk(KERN_ERR "ep->bInterval=%x\n", endpoint->bInterval);
+}
+
 //系統會傳遞給探測函數一個usb_interface *跟一個struct usb_device_id *作為參數。
 //他們分別是該USB設備的接口描述（一般會是該設備的第0號接口，
 //該接口的默認設置也是第0號設置）跟它的設備ID描述（包括Vendor ID、Production ID等）
@@ -260,7 +270,7 @@ static int skel_probe(struct usb_interface *interface,
 	}
 
 	printk(KERN_ERR "eric_probe, devsize=%lx\n", sizeof(*dev));
-	printk(KERN_ERR "eric_probe, dev=%lx\n", dev);
+	printk(KERN_ERR "eric_probe, dev=%x\n", dev);
 
 	//初始化kref,把他設為1
 	//這個是本module的kref, 至於usbDevice的kref是在 dev->dev->kref
@@ -298,17 +308,31 @@ static int skel_probe(struct usb_interface *interface,
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
 
-		printk(KERN_ERR "eric_probe, dev->bulk_in=%lx\n", dev->bulk_in_endpointAddr);
+		printk(KERN_ERR "eric_probe, dev->bulk_in_endpointAddr=%x\n", dev->bulk_in_endpointAddr);
+		printk(KERN_ERR "bNumEndpoints=%x\n", iface_desc->desc.bNumEndpoints);
+
+		printk(KERN_ERR "eric_probe, epNo=%d\n", i);
+		showEndPoint(endpoint);
+
 
 		// 把 device的endpoint descriptor，註冊到usb_skel中
 		if (!dev->bulk_in_endpointAddr && usb_endpoint_is_bulk_in(endpoint)) {
 			/* we found a bulk in endpoint */
 			
+			printk(KERN_ERR "We found bulkin\n");
+
 			// usb_endpoint_maxp(endpoint) 其實就是 le16_to_cpu(epd->wMaxPacketSize);
 			// le16_to_cpu 是前後MSB轉LSB顛倒, big_endlian和little_endian互轉
 			buffer_size = usb_endpoint_maxp(endpoint);
+
+			
+
 			dev->bulk_in_size = buffer_size;
 			dev->bulk_in_endpointAddr = endpoint->bEndpointAddress;
+
+			printk(KERN_ERR "buffer_size=%lx\n", buffer_size);
+			printk(KERN_ERR "bulk_in_endpointAddr=%x\n", dev->bulk_in_endpointAddr);
+
 			dev->bulk_in_buffer = kmalloc(buffer_size, GFP_KERNEL);
 			if (!dev->bulk_in_buffer) {
 				err("Could not allocate bulk_in_buffer");
@@ -322,8 +346,10 @@ static int skel_probe(struct usb_interface *interface,
 		}
 
 		if (!dev->bulk_out_endpointAddr && usb_endpoint_is_bulk_out(endpoint)) {
+			
 			/* we found a bulk out endpoint */
 			dev->bulk_out_endpointAddr = endpoint->bEndpointAddress;
+			printk(KERN_ERR "We found bulkout = %x\n", dev->bulk_out_endpointAddr );
 		}
 	}
 	
@@ -355,7 +381,7 @@ static int skel_probe(struct usb_interface *interface,
 	}
 
 	/* let the user know what node this device is now attached to */
-	dev_info(&interface->dev, "USB Skeleton device now attached to USBSkel-%d", interface->minor);
+	dev_info(&interface->dev, "eric usb device now attached to USBSkel-%d", interface->minor);
 	return 0;
 
 error:
