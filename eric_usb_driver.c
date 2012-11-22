@@ -156,11 +156,11 @@ static int skel_open(struct inode *inode, struct file *file)
 	int subminor;
 	int retval = 0;
 
-	printk(KERN_ERR "eric_open\n");
-
-
 	subminor = iminor(inode);
+	
+	printk(KERN_ERR "eric_open, subminor=%d\n", subminor);
 
+	// 藉由subminor號，取出對應的interface
 	interface = usb_find_interface(&skel_driver, subminor);
 	if (!interface) {
 		err("%s - error, can't find device for minor %d",
@@ -168,7 +168,8 @@ static int skel_open(struct inode *inode, struct file *file)
 		retval = -ENODEV;
 		goto exit;
 	}
-
+	
+	//取出interface所綁定的usb_skel
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
 		retval = -ENODEV;
@@ -176,7 +177,10 @@ static int skel_open(struct inode *inode, struct file *file)
 	}
 
 	/* increment our usage count for the device */
-	kref_get(&dev->kref);
+	// 取出k-reference?
+	kref_get(&dev->kref); 
+	
+	printk(KERN_ERR "refcount=%d\n", dev->kref->refcount);
 
 	/* lock the device to allow correctly handling errors
 	 * in resumption */
@@ -199,6 +203,8 @@ static int skel_open(struct inode *inode, struct file *file)
 	} */
 	/* prevent the device from being autosuspended */
 
+	printk(KERN_ERR "open_count=%d, retval=%d\n", dev->open_count, retval);
+	
 	/* save our object in the file's private structure */
 	file->private_data = dev;
 	mutex_unlock(&dev->io_mutex);
@@ -301,8 +307,9 @@ static int skel_probe(struct usb_interface *interface,
 	5.成功則返回0
 	*/
 	
-	//建立一個 skeleton 並命名為一個很容易混淆的名子 -- dev
-	//並且在這個init的地方，使用 kzalloc 配置記憶體
+	// 建立一個 skeleton 並命名為一個很容易混淆的名子 -- dev
+	// 其實對linux來說，usb_skel就是對應到 device( drive, device, bus)
+	// 並且在這個init的地方，使用 kzalloc 配置記憶體
 	struct usb_skel *dev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
@@ -352,7 +359,8 @@ static int skel_probe(struct usb_interface *interface,
 	// 而 usb_host_xxx 裡面會有一個叫 usb_xxx_descriptor(如usb_interface_descriptor)，命名通常以 desc 來命名
 	// 裡面對應就是存放 device 回傳的 descriptor 的值
 	
-	// cur_altsetting為一種 usb_host_interface 的struct, 其中裡面的desc是一個叫 usb_interface_descriptor 的 struct，mapping到ch9的interface_descriptor
+	// cur_altsetting為一種 usb_host_interface 的struct, 其中裡面的desc是一個叫 usb_interface_descriptor 的 struct，
+	// mapping到ch9的interface_descriptor
 	// 可以在include/linux/ch9.h中找到
 	
 	iface_desc = interface->cur_altsetting;
