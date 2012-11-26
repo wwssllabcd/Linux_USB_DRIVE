@@ -232,9 +232,131 @@ static int skel_flush(struct file *file, fl_owner_t id)
 static ssize_t skel_read(struct file *file, char *buffer, size_t count,
 			 loff_t *ppos)
 {
-	int rv=0;
-	
-	printk(KERN_ERR "eric_skel_read\n");
+
+	struct usb_skel *dev;
+	int rv;
+	bool ongoing_io;
+
+	dev = file->private_data;
+
+	printk(KERN_INFO "eric_Read\n");
+
+	/* if we cannot read at all, return EOF */
+	if (!dev->bulk_in_urb || !count)
+		return 0;
+
+	/* no concurrent readers */
+	rv = mutex_lock_interruptible(&dev->io_mutex);
+	if (rv < 0)
+		return rv;
+
+	if (!dev->interface) {		/* disconnect() was called */
+		rv = -ENODEV;
+		goto exit;
+	}
+
+	/* if IO is under way, we must not touch things */
+retry:
+	spin_lock_irq(&dev->err_lock);
+	ongoing_io = dev->ongoing_read;
+	spin_unlock_irq(&dev->err_lock);
+
+	if (ongoing_io) {
+		/* nonblocking IO shall not wait */
+		if (file->f_flags & O_NONBLOCK) {
+			rv = -EAGAIN;
+			goto exit;
+		}
+		/*
+		 * IO may take forever
+		 * hence wait in an interruptible state
+		 */
+		rv = wait_for_completion_interruptible(&dev->bulk_in_completion);
+		if (rv < 0)
+			goto exit;
+		/*
+		 * by waiting we also semiprocessed the urb
+		 * we must finish now
+		 */
+		dev->bulk_in_copied = 0;
+		dev->processed_urb = 1;
+	}
+
+	if (!dev->processed_urb) {
+		/*
+		 * the URB hasn't been processed
+		 * do it now
+		 */
+		wait_for_completion(&dev->bulk_in_completion);
+		dev->bulk_in_copied = 0;
+		dev->processed_urb = 1;
+	}
+
+	/* errors must be reported */
+	rv = dev->errors;
+	if (rv < 0) {
+		/* any error is reported once */
+		dev->errors = 0;
+		/* to preserve notifications about reset */
+		rv = (rv == -EPIPE) ? rv : -EIO;
+		/* no data to deliver */
+		dev->bulk_in_filled = 0;
+		/* report it */
+		goto exit;
+	}
+
+	/*
+	 * if the buffer is filled we may satisfy the read
+	 * else we need to start IO
+	 */
+
+	if (dev->bulk_in_filled) {
+		/* we had read data */
+		size_t available = dev->bulk_in_filled - dev->bulk_in_copied;
+		size_t chunk = min(available, count);
+
+		if (!available) {
+			/*
+			 * all data has been used
+			 * actual IO needs to be done
+			 */
+			rv = skel_do_read_io(dev, count);
+			if (rv < 0)
+				goto exit;
+			else
+				goto retry;
+		}
+		/*
+		 * data is available
+		 * chunk tells us how much shall be copied
+		 */
+
+		if (copy_to_user(buffer,
+				 dev->bulk_in_buffer + dev->bulk_in_copied,
+				 chunk))
+			rv = -EFAULT;
+		else
+			rv = chunk;
+
+		dev->bulk_in_copied += chunk;
+
+		/*
+		 * if we are asked for more than we have,
+		 * we start IO but don't wait
+		 */
+		if (available < count)
+			skel_do_read_io(dev, count - chunk);
+	} else {
+		/* no data in the buffer */
+		rv = skel_do_read_io(dev, count);
+		if (rv < 0)
+			goto exit;
+		else if (!(file->f_flags & O_NONBLOCK))
+			goto retry;
+		rv = -EAGAIN;
+	}
+exit:
+	mutex_unlock(&dev->io_mutex);
 	return rv;
 }
 
