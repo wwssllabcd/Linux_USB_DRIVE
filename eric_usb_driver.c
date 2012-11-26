@@ -144,6 +144,7 @@ static int skel_open(struct inode *inode, struct file *file)
 		err("%s - error, can't find device for minor %d",
 		     __func__, subminor);
 		retval = -ENODEV;
+		printk(KERN_ERR "rt interface\n");
 		goto exit;
 	}
 	
@@ -151,6 +152,7 @@ static int skel_open(struct inode *inode, struct file *file)
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
 		retval = -ENODEV;
+		printk(KERN_ERR "rt dev\n");
 		goto exit;
 	}
 
@@ -165,11 +167,17 @@ static int skel_open(struct inode *inode, struct file *file)
 	mutex_lock(&dev->io_mutex);
 
 	if (!dev->open_count++) {
+
+		printk(KERN_ERR "open_count=%d, retval=%d\n", dev->open_count, retval);
 		retval = usb_autopm_get_interface(interface);
+		printk(KERN_ERR "retval=%d\n", retval);
+		retval=0;
 			if (retval) {
 				dev->open_count--;
 				mutex_unlock(&dev->io_mutex);
 				kref_put(&dev->kref, skel_delete);
+
+				printk(KERN_ERR "open_count_autopm=%d\n", dev->open_count);
 				goto exit;
 			}
 	} /* else { //uncomment this block if you want exclusive open
@@ -181,13 +189,14 @@ static int skel_open(struct inode *inode, struct file *file)
 	} */
 	/* prevent the device from being autosuspended */
 
-	printk(KERN_ERR "open_count=%d, retval=%d\n", dev->open_count, retval);
+	printk(KERN_ERR "open_count=%d\n", dev->open_count);
 	
 	/* save our object in the file's private structure */
 	file->private_data = dev;
 	mutex_unlock(&dev->io_mutex);
 
 exit:
+	printk(KERN_ERR "exit retval=%d\n", retval);
 	return retval;
 }
 

@@ -13,6 +13,8 @@ obj-m       := $(MODULE_NAME).o
 
 all:
 	make -C $(KERNEL_DIR) M=$(PWD) modules
+	- rmmod $(MODULE_NAME).ko  
+	- rmmod usb_storage
 	insmod $(MODULE_NAME).ko  
 	$(PRINT_MESSAGE) 
 clean:
@@ -24,5 +26,5 @@ clean:
 define PRINT_MESSAGE
 	@echo 
 	@echo ------message--------
-	@dmesg |grep eric
+	@dmesg|tail
 endef
