@@ -229,6 +229,39 @@ static int skel_flush(struct file *file, fl_owner_t id)
 	return res;
 }
 
+static int skel_do_read_io(struct usb_skel *dev, size_t count)
+{
+	int rv;
+
+	/* prepare a read */
+	usb_fill_bulk_urb(dev->bulk_in_urb,
+			dev->udev,
+			usb_rcvbulkpipe(dev->udev,
+				dev->bulk_in_endpointAddr),
+			dev->bulk_in_buffer,
+			min(dev->bulk_in_size, count),
+			skel_read_bulk_callback,
+			dev);
+	/* tell everybody to leave the URB alone */
+	spin_lock_irq(&dev->err_lock);
+	dev->ongoing_read = 1;
+	spin_unlock_irq(&dev->err_lock);
+
+	/* do it */
+	rv = usb_submit_urb(dev->bulk_in_urb, GFP_KERNEL);
+	if (rv < 0) {
+		err("%s - failed submitting read urb, error %d",
+			__func__, rv);
+		dev->bulk_in_filled = 0;
+		rv = (rv == -ENOMEM) ? rv : -EIO;
+		spin_lock_irq(&dev->err_lock);
+		dev->ongoing_read = 0;
+		spin_unlock_irq(&dev->err_lock);
+	}
+
+	return rv;
+}
+
 static ssize_t skel_read(struct file *file, char *buffer, size_t count,
 			 loff_t *ppos)
 {
