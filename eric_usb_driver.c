@@ -62,32 +62,8 @@ MODULE_DEVICE_TABLE(usb, skel_table);
    is an integer 512 is the largest possible packet on EHCI */
 #define WRITES_IN_FLIGHT	8
 
-static int __init usb_skel_init(void)
-{
-	int result;
 
-	/* register this driver with the USB subsystem */
-	//註冊本驅動，可用lsmod觀察
-	result = usb_register(&skel_driver);
-	printk(KERN_INFO "eric_init= %d, vid= %04x, pid=%04x\n", result, USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID );
 
-	if (result)
-		err("usb_register failed. Error number %d", result);
-
-	return result;
-}
-
-static void __exit usb_skel_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&skel_driver);
-
-	printk(KERN_ERR "eric_usb_skel_exit\n");
-}
-
-module_init(usb_skel_init);
-module_exit(usb_skel_exit);
-MODULE_LICENSE("GPL");
 
 #define to_skel_dev(d) container_of(d, struct usb_skel, kref)
 
@@ -156,6 +132,8 @@ static int skel_open(struct inode *inode, struct file *file)
 	int subminor;
 	int retval = 0;
 
+	printk(KERN_INFO "eric_open\n");
+
 	subminor = iminor(inode);
 	
 	printk(KERN_ERR "eric_open, subminor=%d\n", subminor);
@@ -180,7 +158,7 @@ static int skel_open(struct inode *inode, struct file *file)
 	// 取出k-reference?
 	kref_get(&dev->kref); 
 	
-	printk(KERN_ERR "refcount=%d\n", dev->kref->refcount);
+	printk(KERN_ERR "refcount=%d\n", dev->kref.refcount);
 
 	/* lock the device to allow correctly handling errors
 	 * in resumption */
@@ -316,8 +294,9 @@ static int skel_probe(struct usb_interface *interface,
 	size_t buffer_size;
 	int i;
 	int retval = -ENOMEM;
+	printk(KERN_INFO "eric_prob,vid= %04x, pid=%04x\n", USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID );
 
-	printk(KERN_ERR "eric_probe, ret=%d\n", retval);
+	
 
 	// 一個新的skeleton
 	/* allocate memory for our device state and initialize it */
@@ -327,8 +306,8 @@ static int skel_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	printk(KERN_ERR "eric_probe, devsize=%lx\n", sizeof(*dev));
-	printk(KERN_ERR "eric_probe, dev=%x\n", dev);
+	printk(KERN_ERR "devsize=%lx\n", sizeof(*dev));
+	printk(KERN_ERR "dev=%x\n", dev);
 
 	//初始化kref,把他設為1
 	//這個是本module的kref, 至於usbDevice的kref是在 dev->dev->kref
@@ -464,3 +443,30 @@ static struct usb_driver skel_driver = {
 	.id_table =	skel_table,
 };
 
+static int __init usb_skel_init(void)
+{
+	int result;
+
+	/* register this driver with the USB subsystem */
+	//註冊本驅動，可用lsmod觀察
+	result = usb_register(&skel_driver);
+	printk(KERN_INFO "eric_init= %d, vid= %04x, pid=%04x\n", result, USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID );
+
+	if (result)
+		err("usb_register failed. Error number %d", result);
+
+	return result;
+}
+
+static void __exit usb_skel_exit(void)
+{
+	/* deregister this driver with the USB subsystem */
+	usb_deregister(&skel_driver);
+
+	printk(KERN_ERR "eric_usb_skel_exit\n");
+}
+
+module_init(usb_skel_init);
+module_exit(usb_skel_exit);
+
+MODULE_LICENSE("GPL");
