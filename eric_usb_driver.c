@@ -236,8 +236,7 @@ static int skel_do_read_io(struct usb_skel *dev, size_t count)
 	/* prepare a read */
 	usb_fill_bulk_urb(dev->bulk_in_urb,
 			dev->udev,
-			usb_rcvbulkpipe(dev->udev,
-				dev->bulk_in_endpointAddr),
+			usb_rcvbulkpipe(dev->udev, dev->bulk_in_endpointAddr),
 			dev->bulk_in_buffer,
 			min(dev->bulk_in_size, count),
 			skel_read_bulk_callback,
@@ -270,10 +269,12 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count,
 	int rv;
 	bool ongoing_io;
 
+	//取出從open那邊 attach 上來的 usb_skel
 	dev = file->private_data;
 
 	printk(KERN_INFO "eric_Read\n");
 
+	//檢查 urb 與 count 是否有配置，urb就是在probe那邊配置的一塊記憶體
 	/* if we cannot read at all, return EOF */
 	if (!dev->bulk_in_urb || !count)
 		return 0;
@@ -283,18 +284,27 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count,
 	if (rv < 0)
 		return rv;
 
+	//檢查interface是否有值
 	if (!dev->interface) {		/* disconnect() was called */
 		rv = -ENODEV;
 		goto exit;
 	}
 
+	printk(KERN_ERR "read_start\n");
+	
+	//這邊作一個goto tag, 目的就是要retry
 	/* if IO is under way, we must not touch things */
 retry:
 	spin_lock_irq(&dev->err_lock);
-	ongoing_io = dev->ongoing_read;
+	ongoing_io = dev->ongoing_read; //這個是一個bool
 	spin_unlock_irq(&dev->err_lock);
 
+	printk(KERN_ERR "ongoing_io=%d\n", ongoing_io);
+	
 	if (ongoing_io) {
+	
+		printk(KERN_ERR "file->f_flags=%d\n", file->f_flags);
+		
 		/* nonblocking IO shall not wait */
 		if (file->f_flags & O_NONBLOCK) {
 			rv = -EAGAIN;
@@ -305,6 +315,9 @@ retry:
 		 * hence wait in an interruptible state
 		 */
 		rv = wait_for_completion_interruptible(&dev->bulk_in_completion);
+		
+		printk(KERN_ERR "rv=%d\n", rv);
+		
 		if (rv < 0)
 			goto exit;
 		/*
@@ -315,6 +328,7 @@ retry:
 		dev->processed_urb = 1;
 	}
 
+	printk(KERN_ERR "dev->processed_urb=%d\n", dev->processed_urb);
 	if (!dev->processed_urb) {
 		/*
 		 * the URB hasn't been processed
@@ -327,6 +341,7 @@ retry:
 
 	/* errors must be reported */
 	rv = dev->errors;
+	printk(KERN_ERR "dev->errors=%d\n", dev->errors);
 	if (rv < 0) {
 		/* any error is reported once */
 		dev->errors = 0;
@@ -343,17 +358,26 @@ retry:
 	 * else we need to start IO
 	 */
 
+	 printk(KERN_ERR "dev->bulk_in_filled=%d\n", dev->bulk_in_filled);
 	if (dev->bulk_in_filled) {
+	
+		// bulk_in_copied看似上一次copy到那邊，而bulk_in_filled是目前到那邊，兩個相減就是本次avaiable
 		/* we had read data */
 		size_t available = dev->bulk_in_filled - dev->bulk_in_copied;
 		size_t chunk = min(available, count);
 
+		printk(KERN_ERR "dev->bulk_in_copied=%d, dev->bulk_in_filled=%d\n", dev->bulk_in_copied, dev->bulk_in_filled);
+		printk(KERN_ERR "available=%d, chunk=%d\n", available, chunk);
+		
 		if (!available) {
 			/*
 			 * all data has been used
 			 * actual IO needs to be done
 			 */
 			rv = skel_do_read_io(dev, count);
+			
+			printk(KERN_ERR "available's rv=%d\n", rv);
+			
 			if (rv < 0)
 				goto exit;
 			else
@@ -364,9 +388,7 @@ retry:
 		 * chunk tells us how much shall be copied
 		 */
 
-		if (copy_to_user(buffer,
-				 dev->bulk_in_buffer + dev->bulk_in_copied,
-				 chunk))
+		if (copy_to_user(buffer, dev->bulk_in_buffer + dev->bulk_in_copied, chunk))
 			rv = -EFAULT;
 		else
 			rv = chunk;
@@ -390,6 +412,7 @@ retry:
 	}
 exit:
 	mutex_unlock(&dev->io_mutex);
+	printk(KERN_ERR "read_exit\n");
 	return rv;
 }
 
