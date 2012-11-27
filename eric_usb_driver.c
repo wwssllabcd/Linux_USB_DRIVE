@@ -324,7 +324,9 @@ retry:
 		 * IO may take forever
 		 * hence wait in an interruptible state
 		 */
+		
 		rv = wait_for_completion_interruptible(&dev->bulk_in_completion);
+
 		printk(KERN_ERR "rv=%d\n", rv);
 		if (rv < 0)
 			goto exit;
@@ -345,7 +347,11 @@ retry:
 		 */
 		//completion 是任務使用的一個輕量級機制: 允許一個線程告訴另一個線程工作已經完成
 		// 詳細請看 http://blog.roodo.com/_jacob_/archives/2884879.html
+
+		printk(KERN_ERR "wfc_start=%d\n", &dev->bulk_in_completion.done);
 		wait_for_completion(&dev->bulk_in_completion);
+		printk(KERN_ERR "wfc_end=%d\n", &dev->bulk_in_completion.done);
+
 		dev->bulk_in_copied = 0;
 		dev->processed_urb = 1;
 	}
