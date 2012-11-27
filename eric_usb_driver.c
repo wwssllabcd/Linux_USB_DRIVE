@@ -287,6 +287,9 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count,
 
 	//檢查 urb 與 count 是否有配置，urb就是在probe那邊配置的一塊記憶體
 	/* if we cannot read at all, return EOF */
+
+	printk(KERN_INFO "dev->bulk_in_urb=%d, count=%d\n", dev->bulk_in_urb, count);
+
 	if (!dev->bulk_in_urb || !count)
 		return 0;
 
