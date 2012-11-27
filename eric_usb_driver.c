@@ -229,6 +229,31 @@ static int skel_flush(struct file *file, fl_owner_t id)
 	return res;
 }
 
+static void skel_read_bulk_callback(struct urb *urb)
+{
+	struct usb_skel *dev;
+
+	dev = urb->context;
+
+	spin_lock(&dev->err_lock);
+	/* sync/async unlink faults aren't errors */
+	if (urb->status) {
+		if (!(urb->status == -ENOENT ||
+		    urb->status == -ECONNRESET ||
+		    urb->status == -ESHUTDOWN))
+			err("%s - nonzero write bulk status received: %d",
+			    __func__, urb->status);
+
+		dev->errors = urb->status;
+	} else {
+		dev->bulk_in_filled = urb->actual_length;
+	}
+	dev->ongoing_read = 0;
+	spin_unlock(&dev->err_lock);
+
+	complete(&dev->bulk_in_completion);
+}
+
 static int skel_do_read_io(struct usb_skel *dev, size_t count)
 {
 	int rv;
