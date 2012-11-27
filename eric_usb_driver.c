@@ -78,6 +78,16 @@ static struct usb_driver skel_driver;
 static void skel_draw_down(struct usb_skel *dev);
 
 
+static void showEndPoint(const struct usb_endpoint_descriptor *endpoint)
+{
+	printk(KERN_ERR "ep->bLength=%x\n", endpoint->bLength);
+	printk(KERN_ERR "ep->bDescriptorType=%x\n", endpoint->bDescriptorType);
+	printk(KERN_ERR "ep->bEndpointAddress=%x\n", endpoint->bEndpointAddress);
+	printk(KERN_ERR "ep->bmAttributes=%x\n", endpoint->bmAttributes);
+	printk(KERN_ERR "ep->wMaxPacketSize=%x\n", endpoint->wMaxPacketSize);
+	printk(KERN_ERR "ep->bInterval=%x\n", endpoint->bInterval);
+}
+
 static void skel_delete(struct kref *kref)
 {
 	//skel_delete主要作用就是?"1"
