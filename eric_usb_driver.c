@@ -97,7 +97,7 @@ static void skel_delete(struct kref *kref)
 	3.釋放分配的數據空間
 	4.釋放分配的驅動空間
 	*/
-	printk(KERN_ERR "==skel_delete==\n");
+	printk(KERN_ERR "==eric_delete==\n");
 
 	struct usb_skel *dev = to_skel_dev(kref);
 
@@ -649,10 +649,9 @@ static int skel_probe(struct usb_interface *interface,
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
 
-		printk(KERN_ERR "eric_probe, dev->bulk_in_endpointAddr=%x\n", dev->bulk_in_endpointAddr);
+		printk(KERN_ERR "dev->bulk_in_endpointAddr=%x\n", dev->bulk_in_endpointAddr);
 		printk(KERN_ERR "bNumEndpoints=%x\n", iface_desc->desc.bNumEndpoints);
-
-		printk(KERN_ERR "eric_probe, epNo=%d\n", i);
+		printk(KERN_ERR "epNo=%d\n", i);
 		showEndPoint(endpoint);
 
 		// 把 device的endpoint descriptor，註冊到usb_skel中
@@ -736,7 +735,7 @@ error:
 
 static void skel_disconnect(struct usb_interface *interface)
 {
-	printk(KERN_ERR "==skel_disconnect==\n");
+	printk(KERN_ERR "==eric_disconnect==\n");
 	struct usb_skel *dev;
 	
 	int minor = interface->minor;
