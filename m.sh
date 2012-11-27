@@ -1,1 +1,1 @@
-mount -v -t auto /dev/usb_eric_0 /mnt/myusb
+mount -v -t auto /dev/skel0 /mnt/myusb
